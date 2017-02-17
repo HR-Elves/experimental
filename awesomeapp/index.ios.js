@@ -11,6 +11,7 @@ import {
   Text,
   View
 } from 'react-native';
+import {Vibration} from 'react-native';
 
 import BackgroundGeolocation from "react-native-background-geolocation";
 
@@ -65,22 +66,29 @@ var Foo = React.createClass({
     // This handler fires when movement states changes (stationary->moving; moving->stationary)
     BackgroundGeolocation.on('motionchange', this.onMotionChange);
 
+    BackgroundGeolocation.on('heartbeat', this.onHeartBeat);
+      //test:
+      /*
+        stopTimeout
+        changePace
+      */
     // Now configure the plugin.
     BackgroundGeolocation.configure({
       // Geolocation Config
-      desiredAccuracy: 0,
+      desiredAccuracy: 100,
       stationaryRadius: 1,
       distanceFilter: 1,
       // Activity Recognition
-      stopTimeout: 30,
+      stopTimeout: 20000000, //in milliseconds
+      heartbeatInterval: 1,
       // Application config
-      debug: true, // <-- enable for debug sounds & notifications
-      logLevel: BackgroundGeolocation.LOG_LEVEL_VERBOSE,
+      debug: false, // <-- enable for debug sounds & notifications
+      logLevel: BackgroundGeolocation.LOG_LEVEL_OFF,
       stopOnTerminate: false,   // <-- Allow the background-service to continue tracking when user closes the app.
       startOnBoot: true,        // <-- Auto start tracking when device is powered-up.
       // HTTP / SQLite config
       url: 'https://requestb.in/13lbwi81',
-      autoSync: true,         // <-- POST each location immediately to server
+      autoSync: false,         // <-- POST each location immediately to server
       params: {               // <-- Optional HTTP params
         "auth_token": "maybe_your_server_authenticates_via_token_YES?"
       }
@@ -93,19 +101,59 @@ var Foo = React.createClass({
         });
       }
     });
+    BackgroundGeolocation.destroyLocations();
+    this.sendLocations();
+    BackgroundGeolocation.changePace(true);
+    setInterval(() => {
+      BackgroundGeolocation.changePace(true);
+    }, 1000);
   },
+
   // You must remove listeners when your component unmounts
   componentWillUnmount() {
     // Remove BackgroundGeolocation listeners
     BackgroundGeolocation.un('location', this.onLocation);
     BackgroundGeolocation.un('motionchange', this.onMotionChange);
+    BackgroundGeolocation.un('heartbeat', this.onHeartBeat);
   },
+
+  sendLocations() {
+    BackgroundGeolocation.getLocations((locations) => {
+      fetch('https://requestb.in/13lbwi81', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(locations)
+      });
+    });
+  },
+
   onLocation(location) {
     console.log('- [js]location: ', JSON.stringify(location));
+    let pattern = [0];
+    Vibration.vibrate(pattern);
+    BackgroundGeolocation.changePace(true);
+    // this.sendLocations();
   },
+
   onMotionChange(location) {
     console.log('- [js]motionchanged: ', JSON.stringify(location));
+    let pattern = [0];
+    Vibration.vibrate(pattern);
+    BackgroundGeolocation.changePace(true);
+    // this.sendLocations();
   },
+
+  onHeartBeat() {
+    console.log('- [js]motionchanged: ', JSON.stringify(location));
+    let pattern = [0];
+    Vibration.vibrate(pattern);
+    BackgroundGeolocation.changePace(true);
+    // this.sendLocations();
+  },
+
   render() {
     return (<Text>Test</Text>);
   },
